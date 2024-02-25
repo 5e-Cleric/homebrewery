@@ -4,7 +4,7 @@
 	display        : flex;
 	height         : 100%;
 	outline        : none;
-	flex-direction : row;
+
 	.pane{
 		overflow-x : hidden;
 		overflow-y : hidden;
@@ -55,6 +55,32 @@
 		}
 		&:hover{
 			background-color: #666;
+		}
+	}
+
+	&.left {
+		flex-direction : row;
+	}
+	&.right {
+		flex-direction : row-reverse;
+	}
+	&.bottom {
+		flex-direction   : column-reverse;
+		
+		.pane {
+			height:50%;
+			width:100% !important;
+		}
+
+		.divider {
+			height:15px;
+			width:100%;
+
+			.dots {
+				display: flex;
+				gap: 20px;
+				justify-content: center;
+			}
 		}
 	}
 }

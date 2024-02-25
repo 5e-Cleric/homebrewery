@@ -11,6 +11,7 @@ const SnippetBar = require('./snippetbar/snippetbar.jsx');
 const MetadataEditor = require('./metadataEditor/metadataEditor.jsx');
 
 const EDITOR_THEME_KEY = 'HOMEBREWERY-EDITOR-THEME';
+const EDITOR_POSITION_KEY = 'HOMEBREWERY-EDITOR-POSITION';
 
 const SNIPPETBAR_HEIGHT = 25;
 const DEFAULT_STYLE_TEXT = dedent`
@@ -37,12 +38,15 @@ const Editor = createClass({
 			reportError   : ()=>{},
 
 			editorTheme : 'default',
+			position    : 'left',
 			renderer    : 'legacy'
 		};
 	},
 	getInitialState : function() {
+		console.log(this.props)
 		return {
 			editorTheme : this.props.editorTheme,
+			editorPosition: this.props.editorPosition,
 			view        : 'text' //'text', 'style', 'meta'
 		};
 	},

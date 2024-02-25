@@ -8,8 +8,9 @@ const SplitPane = createClass({
 	displayName     : 'SplitPane',
 	getDefaultProps : function() {
 		return {
-			storageKey   : 'naturalcrit-pane-split',
-			onDragFinish : function(){} //fires when dragging
+			storageKey   	  : 'naturalcrit-pane-split',
+			splitPanePosition : 'left',
+			onDragFinish 	  : function(){} //fires when dragging
 		};
 	},
 
@@ -39,6 +40,9 @@ const SplitPane = createClass({
 			});
 		}
 		window.addEventListener('resize', this.handleWindowResize);
+
+		const editorPos = window.localStorage.getItem('HOMEBREWERY-EDITOR-POSITION');
+		if(editorPos) {this.setState({splitPanePosition : editorPos})};
 	},
 
 	componentWillUnmount : function() {
@@ -135,7 +139,7 @@ const SplitPane = createClass({
 	},
 
 	render : function(){
-		return <div className='splitPane' onPointerMove={this.handleMove} onPointerUp={this.handleUp}>
+		return <div className={cx('splitPane',this.state.splitPanePosition)} onPointerMove={this.handleMove} onPointerUp={this.handleUp}>
 			<Pane
 				ref='pane1'
 				width={this.state.currentDividerPos}

@@ -75,9 +75,10 @@ const BrewRenderer = (props)=>{
 	}, []);
 
 	const updateSize = ()=>{
+		const parentHeight = mainRef.current.parentNode.clientHeight;
 		setState((prevState)=>({
 			...prevState,
-			height : mainRef.current.parentNode.clientHeight,
+			height : parentHeight === 0 ? '100%' : parentHeight,
 		}));
 	};
 
