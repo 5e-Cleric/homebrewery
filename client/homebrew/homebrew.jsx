@@ -11,6 +11,7 @@ const SharePage = require('./pages/sharePage/sharePage.jsx');
 const NewPage = require('./pages/newPage/newPage.jsx');
 const ErrorPage = require('./pages/errorPage/errorPage.jsx');
 const AccountPage = require('./pages/accountPage/accountPage.jsx');
+const AssetsPage = require('./pages/assetsPage/assetsPage.jsx');
 
 const WithRoute = (props)=>{
 	const params = useParams();
@@ -76,6 +77,7 @@ const Homebrew = createClass({
 						<Route path='/account' element={<WithRoute el={AccountPage} brew={this.props.brew} accountDetails={this.props.brew.accountDetails} />} />
 						<Route path='/legacy' element={<WithRoute el={HomePage} brew={this.props.brew} />} />
 						<Route path='/error' element={<WithRoute el={ErrorPage} brew={this.props.brew} />} />
+						<Route path='/assets' element={<WithRoute el={AssetsPage} brew={this.props.brew} />} />
 						<Route path='/' element={<WithRoute el={HomePage} brew={this.props.brew} />} />
 						<Route path='/*' element={<WithRoute el={HomePage} brew={this.props.brew} />} />
 					</Routes>
