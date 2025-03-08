@@ -243,6 +243,11 @@ const Stats = ()=>{
 							))
 						}
 					</div>
+					<div className='background'>
+						{chartRange(dataset.data, '0 to max')?.map((value, index)=>(
+							<hr key={index} style={{ bottom: `${(value / maxY) * 100}%` }} />
+						))}
+					</div>
 					<div className='data'>
 						{dataset.data.map((value, index)=>(
 							<div
@@ -304,7 +309,8 @@ const Stats = ()=>{
 				<div className={`graph Lang`}>{renderChart('Lang')}</div>
 				<div className='graph pageCount'>{renderChart('PageCount')}</div>
 				<div className='graph version'>{renderChart('Version')}</div>
-				{//<div className='graph missing'>{renderChart('MissingField')}</div>
+				{
+					//<div className='graph missing'>{renderChart('MissingField')}</div>
 				}
 				<div className='graph Updated-Created'>{renderChart('Updated-Created')}</div>
 				<div className='graph Views'>{renderChart('Views')}</div>
