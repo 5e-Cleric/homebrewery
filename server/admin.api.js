@@ -263,12 +263,28 @@ router.get('/admin/brewsByViews', mw.adminOnly, async (req, res)=>{
 router.get('/admin/brewsBySystems', mw.adminOnly, async (req, res)=>{
 	try {
 		const data = await HomebrewModel.getDocumentCountsBySystems();
-		res.json(data);
+		const counts = {};
+
+		data.forEach(({ _id, count })=>{
+			const uniqueSortedId = [...new Set(_id)].sort().join(',');
+			counts[uniqueSortedId] = (counts[uniqueSortedId] || 0) + count;
+		});
+
+		const result = Object.keys(counts).map((key)=>({
+			_id   : key.split(','),
+			count : counts[key]
+		}));
+
+		console.table(result);
+		res.json(result);
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ error: 'Internal Server Error' });
 	}
 });
+
+
+
 
 router.get('/admin/brewsByUpdated-Created', mw.adminOnly, async (req, res)=>{
 	try {
