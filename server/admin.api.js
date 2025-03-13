@@ -283,9 +283,6 @@ router.get('/admin/brewsBySystems', mw.adminOnly, async (req, res)=>{
 	}
 });
 
-
-
-
 router.get('/admin/brewsByUpdated-Created', mw.adminOnly, async (req, res)=>{
 	try {
 		const brewsByDateDifference = await HomebrewModel.aggregate([
