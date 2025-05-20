@@ -306,16 +306,20 @@ const Stats = ()=>{
 			<div className='content'>
 				<div className='table'>{renderTable()}</div>
 				<div className='graph Date'>{renderChart('Date')}</div>
-				<div className={`graph Lang`}>{renderChart('Lang')}</div>
-				<div className='graph pageCount'>{renderChart('PageCount')}</div>
-				<div className='graph version'>{renderChart('Version')}</div>
-				{
-					//<div className='graph missing'>{renderChart('MissingField')}</div>
-				}
-				<div className='graph Updated-Created'>{renderChart('Updated-Created')}</div>
-				<div className='graph Views'>{renderChart('Views')}</div>
-				<div className='graph Systems'>{renderChart('Systems')}</div>
-				<div className='div graph PageVsVersion'>{renderChart('PageVsVersion')}</div>
+				<div className='graph DateAndAuthor'>{renderChart('DateAndAuthor')}</div>
+				{/*
+					<div className='graph missing'>{renderChart('MissingField')}</div>
+					<div className={`graph Lang`}>{renderChart('Lang')}</div>
+					<div className='graph pageCount'>{renderChart('PageCount')}</div>
+					<div className='graph version'>{renderChart('Version')}</div>
+					<div className='graph Updated-Created'>{renderChart('Updated-Created')}</div>
+					<div className='graph Views'>{renderChart('Views')}</div>
+					<div className='graph Systems'>{renderChart('Systems')}</div>
+					<div className='div graph PageVsVersion'>{renderChart('PageVsVersion')}</div>
+					<div className='graph Author'>{renderChart('Author')}</div>
+					<span>Its labels are reversed, its number of accounts that have the number indicated of brews.</span>
+				*/}
+
 			</div>
 		</section>
 	);

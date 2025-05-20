@@ -379,6 +379,105 @@ router.get('/admin/brewsByPageVsVersion', mw.adminOnly, async (req, res)=>{
 	}
 });
 
+router.get('/admin/brewsByAuthor', mw.adminOnly, async (req, res)=>{
+	try {
+		const authoredBrews = await HomebrewModel.aggregate([
+			{
+				$match : {
+					authors : { $exists: true },
+					authors : { $ne: [] },
+				}
+			},
+			{
+				$project : {
+  					owner : { $arrayElemAt: ['$authors', 0] }
+				}
+			},
+			{
+				$group : {
+					_id   : '$owner',
+					count : { $sum: 1 }
+				}
+			},
+			{ $sort: { _id: 1 } }
+		], { maxTimeMS: 30000 });
+
+		const boundaries = [0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024];
+		const defaultLabel = '1000+';
+
+		const groupByBuckets = (data)=>{
+			const buckets = {};
+			data.forEach(({ count, _id })=>{
+				let key = defaultLabel;
+				for (let i=0; i<boundaries.length-1; i++)
+					if(count >= boundaries[i] && count < boundaries[i+1]) {
+						key = `${boundaries[i]}-${boundaries[i+1]-1}`;
+						break;
+					}
+				buckets[key] = buckets[key] || { count: 0, authors: [] };
+				buckets[key].count++;
+				buckets[key].authors.push(_id);
+			});
+			return Object.entries(buckets)
+  			.map(([key, val])=>({ _id: key, count: val.count }))
+  			.sort((a, b)=>{
+  				const numA = parseInt(a._id);
+  				const numB = parseInt(b._id);
+  				return numA - numB;
+  			});
+		};
+		const brews = groupByBuckets(authoredBrews);
+		console.log(brews);
+
+		return res.json(brews);
+
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ error: 'Internal Server Error' });
+	}
+});
+
+router.get('/admin/brewsByDateAndAuthor', mw.adminOnly, async (req, res)=>{
+	try {
+		const data = await HomebrewModel.aggregate([
+			{
+				$match : {
+					authors   : { $exists: true, $ne: [] },
+					createdAt : { $exists: true }
+				}
+			},
+			{
+				$project : {
+					owner     : { $arrayElemAt: ['$authors', 0] },
+					createdAt : 1
+				}
+			},
+			{
+				$sort : { createdAt: 1 }
+			},
+			{
+				$group : {
+					_id       : '$owner',
+					firstDate : { $first: '$createdAt' }
+				}
+			},
+			{
+				$group : {
+					_id   : { $dateToString: { format: '%Y-%m', date: '$firstDate' } },
+					count : { $sum: 1 }
+				}
+			},
+			{
+				$sort : { _id: 1 }
+			}
+		], { maxTimeMS: 30000 });
+
+		res.json(data);
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ error: 'Internal Server Error' });
+	}
+});
 
 /*
 router.get('/admin/brewsByMissingField', mw.adminOnly, async (req, res)=>{
