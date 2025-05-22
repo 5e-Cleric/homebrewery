@@ -174,7 +174,11 @@ const Stats = ()=>{
 		return result;
 	};
 
-	const renderChart = (category)=>{
+	const renderChart = (category, title, labelV, labelH)=>{
+		const chartTitle = title || `Brews per ${category}`;
+		console.log(title, chartTitle);
+		const chartLabelV = labelV || 'Brews';
+		const chartLabelH = labelH || category;
 		const dataset = chartData?.find((item)=>item.category === category);
 		const isLoading = loading.includes(category);
 
@@ -182,11 +186,11 @@ const Stats = ()=>{
 			return (
 				<>
 					<div className='heading'>
-						<h4>Brews per {category}</h4>
+						<h4>{chartTitle}</h4>
 					</div>
 					<div className='chart'>
 						<div className='leftAxis'>
-							<div className='axisLabel'>Brews</div>
+							<div className='axisLabel'>{chartLabelV}</div>
 						</div>
 						<div className='data'>
 							<button
@@ -203,7 +207,7 @@ const Stats = ()=>{
 						</div>
 
 						<div className='bottomAxis'>
-							<div className='axisLabel'>{category}</div>
+							<div className='axisLabel'>{chartLabelH}</div>
 						</div>
 					</div>
 				</>
@@ -229,7 +233,7 @@ const Stats = ()=>{
 				</div>
 				<div className='chart'>
 					<div className='leftAxis'>
-						<div className='axisLabel'>Brews</div>
+						<div className='axisLabel'>{chartLabelV}</div>
 						{
 							// Map chartRange as spans, setting their bottom position as percentage of bottom
 							chartRange(dataset.data, '0 to max')?.map((value, index)=>(
@@ -291,7 +295,7 @@ const Stats = ()=>{
 								</span>
 							))
 						}
-						<div className='axisLabel'>{category}</div>
+						<div className='axisLabel'>{chartLabelH}</div>
 					</div>
 				</div>
 			</>
@@ -306,19 +310,18 @@ const Stats = ()=>{
 			<div className='content'>
 				<div className='table'>{renderTable()}</div>
 				<div className='graph Date'>{renderChart('Date')}</div>
-				<div className='graph DateAndAuthor'>{renderChart('DateAndAuthor')}</div>
-				{/*
-					<div className='graph missing'>{renderChart('MissingField')}</div>
-					<div className={`graph Lang`}>{renderChart('Lang')}</div>
-					<div className='graph pageCount'>{renderChart('PageCount')}</div>
-					<div className='graph version'>{renderChart('Version')}</div>
-					<div className='graph Updated-Created'>{renderChart('Updated-Created')}</div>
-					<div className='graph Views'>{renderChart('Views')}</div>
-					<div className='graph Systems'>{renderChart('Systems')}</div>
-					<div className='div graph PageVsVersion'>{renderChart('PageVsVersion')}</div>
-					<div className='graph Author'>{renderChart('Author')}</div>
-					<span>Its labels are reversed, its number of accounts that have the number indicated of brews.</span>
-				*/}
+				<div className='graph DateAndAuthor'>{renderChart('DateAndAuthor', 'Authors per first document date', 'Nº of authors', 'Date')}</div>
+
+				<div className='graph missing'>{renderChart('MissingField')}</div>
+				<div className={`graph Lang`}>{renderChart('Lang')}</div>
+				<div className='graph pageCount'>{renderChart('PageCount')}</div>
+				<div className='graph version'>{renderChart('Version')}</div>
+				<div className='graph Updated-Created'>{renderChart('Updated-Created')}</div>
+				<div className='graph Views'>{renderChart('Views')}</div>
+				<div className='graph Systems'>{renderChart('Systems')}</div>
+				<div className='div graph PageVsVersion'>{renderChart('PageVsVersion', 'Ratio of version/pageCount', 'Brews', 'Ratio')}</div>
+				<div className='graph Author'>{renderChart('Author', 'Authors per number of brews', 'Nº of authors', 'Brews per author')}</div>
+				<div className='graph AuthorsDuration'>{renderChart('AuthorsDuration', 'Authors per activity (last brew updatedAt - first brew createAt)', 'Users', 'Time active in months')}</div>
 
 			</div>
 		</section>

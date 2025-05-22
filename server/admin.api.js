@@ -352,7 +352,7 @@ router.get('/admin/brewsByPageVsVersion', mw.adminOnly, async (req, res)=>{
 		const pageVsVersion = await HomebrewModel.aggregate([
 			{
 				$match : {
-					pageCount : { $gt: 0 }, // Exclude zero/missing values
+					pageCount : { $gt: 0 },
 					version   : { $gte: 0 }
 				}
 			},
@@ -370,15 +370,42 @@ router.get('/admin/brewsByPageVsVersion', mw.adminOnly, async (req, res)=>{
 			{ $sort: { _id: 1 } }
 		], { maxTimeMS: 30000, hint: { pageCount: 1, version: 1 } });
 
-		console.log(pageVsVersion);
+		const boundaries = [0, 0.01, 0.1, 0.25, 0.5, 0.75, 1, 2, 5, 10];
+		const defaultLabel = '10+';
 
-		return res.json(pageVsVersion);
+		const groupByBuckets = (data)=>{
+			const buckets = {};
+			data.forEach(({ count, _id })=>{
+				let key = defaultLabel;
+				for (let i = 0; i < boundaries.length - 1; i++)
+					if(_id >= boundaries[i] && _id < boundaries[i + 1]) {
+						key = `${boundaries[i]}-${boundaries[i + 1] - 1} ratio of version / page count`;
+						break;
+					}
+				buckets[key] = buckets[key] || { count: 0, authors: [] };
+				buckets[key].count++;
+				buckets[key].authors.push(_id);
+			});
+			return Object.entries(buckets)
+				.map(([key, val])=>({ _id: key, count: val.count }))
+				.sort((a, b)=>{
+					const numA = parseInt(a._id);
+					const numB = parseInt(b._id);
+					return numA - numB;
+				});
+		};
+
+		const brews = groupByBuckets(pageVsVersion);
+		console.log(brews);
+
+		return res.json(brews);
 
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ error: 'Internal Server Error' });
 	}
 });
+
 
 router.get('/admin/brewsByAuthor', mw.adminOnly, async (req, res)=>{
 	try {
@@ -479,6 +506,64 @@ router.get('/admin/brewsByDateAndAuthor', mw.adminOnly, async (req, res)=>{
 		res.status(500).json({ error: 'Internal Server Error' });
 	}
 });
+
+router.get('/admin/brewsByAuthorsDuration', mw.adminOnly, async (req, res)=>{
+	try {
+		const data = await HomebrewModel.aggregate([
+			{
+				$project : {
+					authors   : 1,
+					createdAt : 1,
+					updatedAt : 1
+				}
+			},
+			{
+				$match : {
+					authors   : { $exists: true, $ne: [] },
+					createdAt : { $exists: true, $ne: null },
+					updatedAt : { $exists: true, $ne: null }
+				}
+			},
+			{
+				$group : {
+					_id        : { $arrayElemAt: ['$authors', 0] },
+					firstDate  : { $min: '$createdAt' },
+					lastUpdate : { $max: '$updatedAt' }
+				}
+			},
+			{
+				$project : {
+					durationMonths : {
+						$floor : {
+							$divide : [
+								{ $subtract: ['$lastUpdate', '$firstDate'] },
+								1000 * 60 * 60 * 24 * 30
+							]
+						}
+					}
+				}
+			},
+
+			{
+				$bucket : {
+					groupBy    : '$durationMonths',
+					boundaries : [1, 6, 12, 24, 48, 72, 96, 120, 130],
+					default    : 'null duration (not sure how it is possible yet',
+					output     : { count: { $sum: 1 } }
+				}
+			},
+
+		], { maxTimeMS: 120000, allowDiskUse: true });
+
+		console.log(data);
+
+		res.json(data);
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ error: 'Internal Server Error' });
+	}
+});
+
 
 // #######################   LOCKS
 
