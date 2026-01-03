@@ -156,6 +156,8 @@ router.get('/admin/stats', mw.adminOnly, async (req, res)=>{
 	case 'totalPublished':
 		try {
 			const publishedBrewsCount = await HomebrewModel.countDocuments({ published: 'true' });
+			console.log(publishedBrewsCount);
+			console.log(HomebrewModel);
 			return res.json(publishedBrewsCount);
 		} catch (error) {
 			console.error('Failed to get publishedBrewsCount:', error);
@@ -188,6 +190,7 @@ router.get('/admin/stats', mw.adminOnly, async (req, res)=>{
 	case 'totalBrews':
 		try {
 			const totalBrewsCount = await HomebrewModel.estimatedDocumentCount();
+			console.log(totalBrewsCount);
 			return res.json(totalBrewsCount);
 		} catch (error) {
 			console.error('Failed to get totalBrewsCount:', error);

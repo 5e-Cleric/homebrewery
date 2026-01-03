@@ -1,9 +1,9 @@
 /*eslint max-lines: ["warn", {"max": 500, "skipBlankLines": true, "skipComments": true}]*/
 
-require('./stats.less');
-const React = require('react');
+require("./stats.less");
+const React = require("react");
 const { useState, useEffect } = React;
-const request = require('superagent');
+const request = require("superagent");
 
 /*
 I tried bringing multiple react charting libraries,
@@ -12,7 +12,7 @@ It was way easier to build my own charts, also learned a lot in the process,
 took me an afternoon (plus minute issue fixing).
 */
 
-const Stats = ()=>{
+const Stats = () => {
 	const [stats, setStats] = useState(null);
 	const [chartData, setChartData] = useState([]);
 	const [loading, setLoading] = useState([]);
@@ -20,16 +20,17 @@ const Stats = ()=>{
 	const [missingData, setMissingData] = useState([]);
 
 	// Fetching is manual, to relieve the server of pressure
-	const fetchStat = async (stat)=>{
-		setLoading((prevData)=>[...prevData, stat]);
+	const fetchStat = async (stat) => {
+		setLoading((prevData) => [...prevData, stat]);
 		setError(null);
 		try {
 			const res = await request.get(`/admin/stats?stat=${stat}`);
-			setStats((prevData)=>{
+			console.log("data: ", res.body);
+			setStats((prevData) => {
 				const updatedStats = prevData ? [...prevData] : [];
-				const index = updatedStats.findIndex((item)=>item[stat] !== undefined);
+				const index = updatedStats.findIndex((item) => item[stat] !== undefined);
 
-				if(index >= 0) {
+				if (index >= 0) {
 					updatedStats[index] = { [stat]: res.body };
 				} else {
 					updatedStats.push({ [stat]: res.body });
@@ -39,31 +40,31 @@ const Stats = ()=>{
 			});
 		} catch (error) {
 			console.error(error);
-			setError('Failed to fetch stats.');
+			setError("Failed to fetch stats.");
 		} finally {
-			setLoading((prevData)=>prevData.filter((item)=>item !== stat));
+			setLoading((prevData) => prevData.filter((item) => item !== stat));
 		}
 	};
 
-	useEffect(()=>{
-		fetchStat('totalBrews');
+	useEffect(() => {
+		fetchStat("totalBrews");
 	}, []);
 
-	const renderTable = ()=>{
+	const renderTable = () => {
 		const rows = [
-			{ label: 'Total brews', query: 'totalBrews' },
-			{ label: 'Total published', query: 'totalPublished' },
-			{ label: 'Total without author', query: 'totalUnauthored' },
-			{ label: 'Total in Google storage', query: 'totalInGoogle' },
-			{ label: 'Total with thumbnail', query: 'totalThumbnail' },
+			{ label: "Total brews", query: "totalBrews" },
+			{ label: "Total published", query: "totalPublished" },
+			{ label: "Total without author", query: "totalUnauthored" },
+			{ label: "Total in Google storage", query: "totalInGoogle" },
+			{ label: "Total with thumbnail", query: "totalThumbnail" },
 		];
 
-		const getValue = (query)=>{
-			const statObj = stats?.find((item)=>item[query] !== undefined);
+		const getValue = (query) => {
+			const statObj = stats?.find((item) => item[query] !== undefined);
 			return statObj ? statObj[query] : null;
 		};
 
-		const doesDataExist = (query)=>{
+		const doesDataExist = (query) => {
 			return getValue(query) !== null;
 		};
 
@@ -78,7 +79,7 @@ const Stats = ()=>{
 						</tr>
 					</thead>
 					<tbody>
-						{rows.map((row, index)=>(
+						{rows.map((row, index) => (
 							<tr key={index}>
 								<td>{row.label}</td>
 								<td colSpan={doesDataExist(row.query) ? 1 : 2}>
@@ -86,18 +87,18 @@ const Stats = ()=>{
 										getValue(row.query)
 									) : (
 										<button
-											onClick={()=>fetchStat(row.query)}
+											onClick={() => fetchStat(row.query)}
 											disabled={loading.includes(row.query)}>
 											{loading.includes(row.query) ? (
-												<i className='fas fa-spin fa-spinner'></i>
+												<i className="fas fa-spin fa-spinner"></i>
 											) : (
-												'Fetch'
+												"Fetch"
 											)}
 										</button>
 									)}
 								</td>
 								{doesDataExist(row.query) && (
-									<td>{Math.round((getValue(row.query) / getValue('totalBrews')) * 100)}%</td>
+									<td>{Math.round((getValue(row.query) / getValue("totalBrews")) * 100)}%</td>
 								)}
 							</tr>
 						))}
@@ -107,22 +108,25 @@ const Stats = ()=>{
 		);
 	};
 
-	const fetchChartData = async (category)=>{
-		setLoading((prevData)=>[...prevData, category]);
+	const fetchChartData = async (category) => {
+		setLoading((prevData) => [...prevData, category]);
 		setError(null);
 		try {
 			console.log(`fetching at: /admin/brewsBy${category}`);
 			const response = await fetch(`/admin/brewsBy${category}`);
 			const data = await response.json();
 
+			if (!data) {
+				throw new Error("no data");
+			}
 			// Prepare the data for the chart
-			const labels = data.map((item)=>item._id);
-			const counts = data.map((item)=>item.count);
+			const labels = data.map((item) => item._id);
+			const counts = data.map((item) => item.count);
 
-			setChartData((prevData)=>{
-				const existingCategoryIndex = prevData.findIndex((item)=>item.category === category);
+			setChartData((prevData) => {
+				const existingCategoryIndex = prevData.findIndex((item) => item.category === category);
 
-				if(existingCategoryIndex !== -1) {
+				if (existingCategoryIndex !== -1) {
 					// Replace the existing category data
 					prevData[existingCategoryIndex] = { category, labels, data: counts };
 				} else {
@@ -133,22 +137,22 @@ const Stats = ()=>{
 				return [...prevData];
 			});
 		} catch (error) {
-			console.error('Failed to fetch chart data:', error);
-			setError('Failed to fetch chart data.');
+			console.error("Failed to fetch chart data:", error);
+			setError("Failed to fetch chart data.");
 		} finally {
-			setMissingData((prevData)=>prevData.filter((item)=>item !== category));
-			setLoading((prevData)=>prevData.filter((item)=>item !== category));
+			setMissingData((prevData) => prevData.filter((item) => item !== category));
+			setLoading((prevData) => prevData.filter((item) => item !== category));
 		}
 	};
 
-	const chartRange = (values, rangeType)=>{
+	const chartRange = (values, rangeType) => {
 		//this function might not be appropiate, since charts might have text or data as labels,
 		//and different data should be displayed differently
 		let min = Infinity,
 			max = -Infinity;
 		for (const val of values) {
-			if(val < min) min = val;
-			if(val > max) max = val;
+			if (val < min) min = val;
+			if (val > max) max = val;
 		}
 
 		const rangeSize = 20;
@@ -159,14 +163,14 @@ const Stats = ()=>{
 		const magnitude = Math.pow(10, Math.floor(Math.log10(stepRaw)));
 		const step =
 			[1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000].find(
-				(x)=>x * magnitude >= stepRaw
+				(x) => x * magnitude >= stepRaw
 			) * magnitude;
 
 		const result = [];
 
-		if(rangeType === '0 to max') {
+		if (rangeType === "0 to max") {
 			for (let i = 0; i <= adjustedMax; i += step) result.push(i);
-		} else if(rangeType === 'min to max') {
+		} else if (rangeType === "min to max") {
 			const start = Math.ceil(min / step) * step;
 			for (let i = start; i <= adjustedMax; i += step) result.push(i);
 		}
@@ -174,40 +178,40 @@ const Stats = ()=>{
 		return result;
 	};
 
-	const renderChart = (category, title, labelV, labelH)=>{
+	const renderChart = (category, title, labelV, labelH) => {
 		const chartTitle = title || `Brews per ${category}`;
-		console.log(title, chartTitle);
-		const chartLabelV = labelV || 'Brews';
+		//console.log(title, chartTitle);
+		const chartLabelV = labelV || "Brews";
 		const chartLabelH = labelH || category;
-		const dataset = chartData?.find((item)=>item.category === category);
+		const dataset = chartData?.find((item) => item.category === category);
 		const isLoading = loading.includes(category);
 
-		if(!chartData || chartData.length === 0 || !dataset) {
+		if (!chartData || chartData.length === 0 || !dataset) {
 			return (
 				<>
-					<div className='heading'>
+					<div className="heading">
 						<h4>{chartTitle}</h4>
 					</div>
-					<div className='chart'>
-						<div className='leftAxis'>
-							<div className='axisLabel'>{chartLabelV}</div>
+					<div className="chart">
+						<div className="leftAxis">
+							<div className="axisLabel">{chartLabelV}</div>
 						</div>
-						<div className='data'>
+						<div className="data">
 							<button
 								className={`fetch${category}`}
-								onClick={()=>{
+								onClick={() => {
 									!isLoading && fetchChartData(category);
 								}}>
 								{!isLoading ? (
 									`Fetch Chart Brews per ${category}`
 								) : (
-									<i className='fas fa-spin fa-spinner'></i>
+									<i className="fas fa-spin fa-spinner"></i>
 								)}
 							</button>
 						</div>
 
-						<div className='bottomAxis'>
-							<div className='axisLabel'>{chartLabelH}</div>
+						<div className="bottomAxis">
+							<div className="axisLabel">{chartLabelH}</div>
 						</div>
 					</div>
 				</>
@@ -216,7 +220,7 @@ const Stats = ()=>{
 		const maxY = Math.max(...dataset.data) * 1.05;
 		return (
 			<>
-				<div className='heading'>
+				<div className="heading">
 					<h4>Brews per {category}</h4>
 					{missingData.includes(category) && (
 						<span>
@@ -225,77 +229,79 @@ const Stats = ()=>{
 					)}
 					<button
 						className={`fetch${category}`}
-						onClick={()=>{
+						onClick={() => {
 							fetchChartData(category);
 						}}>
-						{!isLoading ? `Refetch chart data` : <i className='fas fa-spin fa-spinner'></i>}
+						{!isLoading ? `Refetch chart data` : <i className="fas fa-spin fa-spinner"></i>}
 					</button>
 				</div>
-				<div className='chart'>
-					<div className='leftAxis'>
-						<div className='axisLabel'>{chartLabelV}</div>
+				<div className="chart">
+					<div className="leftAxis">
+						<div className="axisLabel">{chartLabelV}</div>
 						{
 							// Map chartRange as spans, setting their bottom position as percentage of bottom
-							chartRange(dataset.data, '0 to max')?.map((value, index)=>(
+							chartRange(dataset.data, "0 to max")?.map((value, index) => (
 								<span
 									key={index}
 									style={{
-										bottom : `${(value / maxY) * 100}%`,
+										bottom: `${(value / maxY) * 100}%`,
 									}}>
 									{value}
 								</span>
 							))
 						}
 					</div>
-					<div className='background'>
-						{chartRange(dataset.data, '0 to max')?.map((value, index)=>(
+					<div className="background">
+						{chartRange(dataset.data, "0 to max")?.map((value, index) => (
 							<hr key={index} style={{ bottom: `${(value / maxY) * 100}%` }} />
 						))}
 					</div>
-					<div className='data'>
-						{dataset.data.map((value, index)=>(
+					<div className="data">
+						{dataset.data.map((value, index) => (
 							<div
 								key={index}
-								onClick={()=>{
+								onClick={() => {
 									// Remove the clicked column's data from chartData state
-									setChartData((prevData)=>prevData.map((item)=>item.category === dataset.category
-										? {
-											...item,
-											data   : item.data.filter((_, i)=>i !== index),
-											labels : item.labels.filter((_, i)=>i !== index),
+									setChartData((prevData) =>
+										prevData.map((item) =>
+											item.category === dataset.category
+												? {
+														...item,
+														data: item.data.filter((_, i) => i !== index),
+														labels: item.labels.filter((_, i) => i !== index),
 												  }
-										: item
-									)
+												: item
+										)
 									);
 									//add to missingData state array the category
-									setMissingData((prevData)=>[...prevData, dataset.category]);
+									setMissingData((prevData) => [...prevData, dataset.category]);
 								}}
-								className='column'
+								className="column"
 								data-title={`${value} brews of ${dataset.labels[index]}`}
 								style={{
-									left   : `${(index / dataset.labels.length) * 100}%`,
-									top    : `${100 - (value / maxY) * 100}%`,
-									bottom : '0',
-									width  : `${100 / dataset.labels.length - 0.3}%`,
+									left: `${(index / dataset.labels.length) * 100}%`,
+									top: `${100 - (value / maxY) * 100}%`,
+									bottom: "0",
+									width: `${100 / dataset.labels.length - 0.3}%`,
 								}}></div>
 						))}
 					</div>
 
-					<div className='bottomAxis'>
+					<div className="bottomAxis">
 						{
 							// Render the labels on the bottom axis
-							dataset.labels.map((label, index)=>(
+							dataset.labels.map((label, index) => (
 								<span
 									key={index}
-									className='bottomLabel'
+									className="bottomLabel"
 									style={{
-										left : `${(index / dataset.labels.length) * 100}%`,
+										left: `${(index / dataset.labels.length) * 100}%`,
 									}}>
-									{(label ?? '') === '' ? 'null' : label}
+									{(label ?? "") === "" ? "null" : label}
 								</span>
 							))
 						}
-						<div className='axisLabel'>{chartLabelH}</div>
+						<div className="axisLabel">{chartLabelH}</div>
 					</div>
 				</div>
 			</>
@@ -303,26 +309,38 @@ const Stats = ()=>{
 	};
 
 	return (
-		<section className='stats'>
+		<section className="stats">
 			<h2>Stats</h2>
-			{error && <p className='error'>{error}</p>}
+			{error && <p className="error">{error}</p>}
 
-			<div className='content'>
-				<div className='table'>{renderTable()}</div>
-				<div className='graph Date'>{renderChart('Date')}</div>
-				<div className='graph DateAndAuthor'>{renderChart('DateAndAuthor', 'Authors per first document date', 'Nº of authors', 'Date')}</div>
+			<div className="content">
+				<div className="table">{renderTable()}</div>
+				<div className="graph Date">{renderChart("Date")}</div>
+				<div className="graph DateAndAuthor">
+					{renderChart("DateAndAuthor", "Authors per first document date", "Nº of authors", "Date")}
+				</div>
 
-				<div className='graph missing'>{renderChart('MissingField')}</div>
-				<div className={`graph Lang`}>{renderChart('Lang')}</div>
-				<div className='graph pageCount'>{renderChart('PageCount')}</div>
-				<div className='graph version'>{renderChart('Version')}</div>
-				<div className='graph Updated-Created'>{renderChart('Updated-Created')}</div>
-				<div className='graph Views'>{renderChart('Views')}</div>
-				<div className='graph Systems'>{renderChart('Systems')}</div>
-				<div className='div graph PageVsVersion'>{renderChart('PageVsVersion', 'Ratio of version/pageCount', 'Brews', 'Ratio')}</div>
-				<div className='graph Author'>{renderChart('Author', 'Authors per number of brews', 'Nº of authors', 'Brews per author')}</div>
-				<div className='graph AuthorsDuration'>{renderChart('AuthorsDuration', 'Authors per activity (last brew updatedAt - first brew createAt)', 'Users', 'Time active in months')}</div>
-
+				<div className="graph missing">{renderChart("MissingField")}</div>
+				<div className={`graph Lang`}>{renderChart("Lang")}</div>
+				<div className="graph pageCount">{renderChart("PageCount")}</div>
+				<div className="graph version">{renderChart("Version")}</div>
+				<div className="graph Updated-Created">{renderChart("Updated-Created")}</div>
+				<div className="graph Views">{renderChart("Views")}</div>
+				<div className="graph Systems">{renderChart("Systems")}</div>
+				<div className="div graph PageVsVersion">
+					{renderChart("PageVsVersion", "Ratio of version/pageCount", "Brews", "Ratio")}
+				</div>
+				<div className="graph Author">
+					{renderChart("Author", "Authors per number of brews", "Nº of authors", "Brews per author")}
+				</div>
+				<div className="graph AuthorsDuration">
+					{renderChart(
+						"AuthorsDuration",
+						"Authors per activity (last brew updatedAt - first brew createAt)",
+						"Users",
+						"Time active in months"
+					)}
+				</div>
 			</div>
 		</section>
 	);
