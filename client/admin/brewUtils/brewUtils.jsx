@@ -3,7 +3,7 @@ import './brewUtils.less';
 
 import BrewCleanup from './brewCleanup/brewCleanup.jsx';
 import BrewLookup from './brewLookup/brewLookup.jsx';
-import BrewCompress from './brewCompress/brewCompress.jsx';s
+import BrewCompress from './brewCompress/brewCompress.jsx';
 
 const BrewUtils = ()=>{
 	return (
