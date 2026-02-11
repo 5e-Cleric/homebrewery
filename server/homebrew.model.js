@@ -179,15 +179,17 @@ HomebrewSchema.statics.getDocumentCountsBySystems = async function() {
 
 HomebrewSchema.statics.getDocumentCountsByTags = async function() {
 	return this.aggregate([
-		{ $match: { tags: { $ne: [] } } },
-		{
-			$group : {
-				_id   : '$tags',
-				count : { $sum: 1 }
-			}
-		},
-		{ $sort: { _id: 1 } }
-	], { maxTimeMS: 30000 });
+  { $match: { tags: { $exists: true, $ne: [] } } },
+  { $unwind: "$tags" },
+  {
+    $group: {
+      _id: "$tags",
+      count: { $sum: 1 }
+    }
+  },
+  { $sort: { _id: 1 } }
+], { allowDiskUse: true });
+
 };
 
 

@@ -119,6 +119,7 @@ const Stats = () => {
 			if (!data) {
 				throw new Error("no data");
 			}
+			console.table(data);
 			// Prepare the data for the chart
 			const labels = data.map((item) => item._id);
 			const counts = data.map((item) => item.count);

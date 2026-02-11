@@ -286,29 +286,39 @@ router.get('/admin/brewsBySystems', mw.adminOnly, async (req, res)=>{
 		res.status(500).json({ error: 'Internal Server Error' });
 	}
 });
+router.get('/admin/brewsByTags', mw.adminOnly, async (req, res) => {
+  try {
+    const data = await HomebrewModel.getDocumentCountsByTags();
 
-router.get('/admin/brewsByTags', mw.adminOnly, async (req, res)=>{
-	try {
-		const data = await HomebrewModel.getDocumentCountsByTags();
-		const counts = {};
+    const counts = {};
 
-		data.forEach(({ _id, count })=>{
-			const uniqueSortedId = [...new Set(_id)].sort().join(',');
-			counts[uniqueSortedId] = (counts[uniqueSortedId] || 0) + count;
-		});
+    data.forEach(({ _id, count }) => {
+      // Trim spaces from tag
+      const tag = _id.trim();
+      if (!tag) return;
 
-		const result = Object.keys(counts).map((key)=>({
-			_id   : key.split(','),
-			count : counts[key]
-		}));
+      counts[tag] = (counts[tag] || 0) + count;
+    });
 
-		console.table(result);
-		res.json(result);
-	} catch (error) {
-		console.error(error);
-		res.status(500).json({ error: 'Internal Server Error' });
-	}
+    // Convert to array and sort descending by count
+    let result = Object.keys(counts).map(tag => ({
+      _id: tag,
+      count: counts[tag]
+    }));
+
+    result = result
+      .sort((a, b) => b.count - a.count) // descending
+      .slice(0, 300); // keep top 500
+
+    console.log(result);
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
+
+
 
 router.get('/admin/brewsByUpdated-Created', mw.adminOnly, async (req, res)=>{
 	try {
