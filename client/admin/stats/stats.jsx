@@ -327,6 +327,7 @@ const Stats = () => {
 				<div className="graph Updated-Created">{renderChart("Updated-Created")}</div>
 				<div className="graph Views">{renderChart("Views")}</div>
 				<div className="graph Systems">{renderChart("Systems")}</div>
+				<div className="graph Tags">{renderChart("Tags")}</div>
 				<div className="div graph PageVsVersion">
 					{renderChart("PageVsVersion", "Ratio of version/pageCount", "Brews", "Ratio")}
 				</div>

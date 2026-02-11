@@ -176,6 +176,21 @@ HomebrewSchema.statics.getDocumentCountsBySystems = async function() {
 	], { maxTimeMS: 30000 });
 };
 
+
+HomebrewSchema.statics.getDocumentCountsByTags = async function() {
+	return this.aggregate([
+		{ $match: { tags: { $ne: [] } } },
+		{
+			$group : {
+				_id   : '$tags',
+				count : { $sum: 1 }
+			}
+		},
+		{ $sort: { _id: 1 } }
+	], { maxTimeMS: 30000 });
+};
+
+
 /* Only works in local, takes longer than a minute
 Homebrew.getDocumentCountsByMissingField = async function() {
 	// Step 1: Get unique field names
