@@ -1,9 +1,8 @@
 /*eslint max-lines: ["warn", {"max": 500, "skipBlankLines": true, "skipComments": true}]*/
 
-require("./stats.less");
-const React = require("react");
-const { useState, useEffect } = React;
-const request = require("superagent");
+import './stats.less';
+import React, { useState, useEffect } from "react";
+import request from 'superagent';
 
 /*
 I tried bringing multiple react charting libraries,
@@ -348,4 +347,4 @@ const Stats = () => {
 	);
 };
 
-module.exports = Stats;
+export default Stats;

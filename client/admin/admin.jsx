@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import BrewUtils from './brewUtils/brewUtils.jsx';
 import NotificationUtils from './notificationUtils/notificationUtils.jsx';
 import AuthorUtils from './authorUtils/authorUtils.jsx';
-const Stats = require('./stats/stats.jsx');
+import Stats from './stats/stats.jsx';
 
 import LockTools  from './lockTools/lockTools.jsx';
 
