@@ -17,12 +17,14 @@ import {
 	crosshairCursor,
 } from '@codemirror/view';
 import { EditorState, Compartment, StateEffect, StateField } from '@codemirror/state';
-import { foldAll as foldAllCmd, unfoldAll as unfoldAllCmd, foldGutter, foldKeymap, foldEffect, foldState, syntaxHighlighting } from '@codemirror/language';
+import { foldAll as foldAllCmd, unfoldAll as unfoldAllCmd, foldGutter, foldKeymap, foldEffect, foldState, syntaxHighlighting, syntaxTree } from '@codemirror/language';
 import { defaultKeymap, history, undo, redo, undoDepth, redoDepth } from '@codemirror/commands';
 import { languages } from '@codemirror/language-data';
 import { css } from '@codemirror/lang-css';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+//import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { html } from '@codemirror/lang-html';
+import { bracemark } from 'codemirror-lang-bracemark';
+console.log(bracemark);
 import { autocompleteEmoji } from './autocompleteEmoji.js';
 import { searchKeymap, search } from '@codemirror/search';
 import { closeBrackets } from '@codemirror/autocomplete';
@@ -208,8 +210,29 @@ const CodeEditor = forwardRef(
 
 			const customHighlightPlugin = createHighlightPlugin(renderer, tab);
 
-			const languageExtension = language === 'css' ? css() : [markdown({ base: markdownLanguage, codeLanguages: languages }), html({ autoCloseTags: true })];
+			const languageExtension = language === 'css' ? css() : bracemark();
 			const themeExtension = Array.isArray(themes[editorTheme]) ? themes[editorTheme] : themes[editorTheme] || themes['default'];
+
+			const debugNodes = EditorView.updateListener.of((update)=>{
+				if(!update.docChanged) return;
+
+
+				const tree = syntaxTree(update.state);
+
+				tree.iterate({
+					enter : (node)=>{
+						if(
+							node.name === 'PageBreak' ||
+        					node.name === 'SnippetBreak' ||
+        					node.name === 'ColumnBreak'
+						) {
+							console.log(node.name, node.from, node.to);
+						} else {
+							console.log(node.name);
+						}
+					}
+				});
+			});
 
 			return [
 				EditorView.lineWrapping,
@@ -247,6 +270,7 @@ const CodeEditor = forwardRef(
 				EditorState.allowMultipleSelections.of(true),
 				dropCursor(),
 				programmaticCursorLineField,
+				debugNodes,
 			];
 		};
 
