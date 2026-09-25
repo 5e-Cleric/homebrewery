@@ -360,8 +360,6 @@ export default function createAdminApi(vite) {
 		}
 	});
 
-
-
 	router.get('/admin/brewsByUpdated-Created', mw.adminOnly, async (req, res)=>{
 		try {
 			const brewsByDateDifference = await HomebrewModel.aggregate([
@@ -483,7 +481,6 @@ export default function createAdminApi(vite) {
 			res.status(500).json({ error: 'Internal Server Error' });
 		}
 	});
-
 
 	router.get('/admin/brewsByAuthor', mw.adminOnly, async (req, res)=>{
 		try {
@@ -641,7 +638,6 @@ export default function createAdminApi(vite) {
 			res.status(500).json({ error: 'Internal Server Error' });
 		}
 	});
-
 
 	// #######################   LOCKS
 
@@ -882,7 +878,6 @@ router.get('/admin/brewsByMissingField', mw.adminOnly, async (req, res)=>{
 			`<head>\n<script id="props">window.__INITIAL_PROPS__ = ${JSON.stringify(props)}</script>`
 		));
 	}));
-
 
 	return router;
 }
