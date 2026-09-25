@@ -4,8 +4,8 @@ import { model as HomebrewModel }    from './homebrew.model.js';
 import express                       from 'express';
 import zlib                          from 'zlib';
 import GoogleActions                 from './googleActions.js';
-import Markdown                      from '../shared/markdown.js';
-import yaml                          from 'js-yaml';
+import { hbfm }   from 'marked-hbfm';
+import * as yaml                     from 'js-yaml';
 import asyncHandler                  from 'express-async-handler';
 import { nanoid }                    from 'nanoid';
 import { makePatches, applyPatches, stringifyPatches, parsePatch } from '@sanity/diff-match-patch';
@@ -21,6 +21,8 @@ const router = express.Router();
 import { DEFAULT_BREW, DEFAULT_BREW_LOAD } from './brewDefaults.js';
 import Themes from '../themes/themes.json' with { type: 'json' };
 
+import Stream from './eventStreamSource.js';
+
 const isStaticTheme = (renderer, themeName)=>{
 	return Themes[renderer]?.[themeName] !== undefined;
 };
@@ -30,6 +32,27 @@ const isStaticTheme = (renderer, themeName)=>{
 // 		cb(brews);
 // 	});
 // };
+
+
+const migrateSystemsToTags = (brew)=>{
+	if(!('systems' in brew)) return brew;
+
+	if(!Array.isArray(brew.systems) || brew.systems.length === 0) {
+		brew.systems = undefined;
+		return brew;
+	}
+	const systemMap = {
+		'5e'         : 'system:D&D 5e',
+		'4e'         : 'system:D&D 4e',
+		'3.5e'       : 'system:D&D 3.5e',
+		'Pathfinder' : 'system:Pathfinder 2e'
+	};
+	const systemTags = brew.systems.map((s)=>systemMap[s]);
+	brew.tags = _.uniq([...(brew.tags || []), ...systemTags]);
+
+	brew.systems = undefined;
+	return brew;
+};
 
 const MAX_TITLE_LENGTH = 100;
 
@@ -147,8 +170,7 @@ const api = {
 
 				const googleBrew = await GoogleActions.getGoogleBrew(oAuth2Client, googleId, id, accessType)
 					.catch((googleError)=>{
-						const reason = googleError.errors?.[0].reason;
-						if(reason == 'notFound')
+						if(googleError.code === 404 || googleError.status === 404)
 							throw { ...googleError, HBErrorCode: '02', authors: stub?.authors, account: req.account?.username };
 						else
 							throw { ...googleError, HBErrorCode: '01' };
@@ -167,11 +189,13 @@ const api = {
 			stub.renderer = stub.renderer || undefined; // Clear empty strings
 			stub = _.defaults(stub, DEFAULT_BREW_LOAD); // Fill in blank fields
 
-			req.brew = stub;
+
+
+			const fixedStub = migrateSystemsToTags(stub);
+			req.brew = fixedStub;
 			next();
 		};
 	},
-
 	getCSS : async (req, res)=>{
 		const { brew } = req;
 		if(!brew) return res.status(404).send('');
@@ -184,7 +208,6 @@ const api = {
 		});
 		return res.status(200).send(brew.style);
 	},
-
 	mergeBrewText : (brew)=>{
 		let text = brew.text;
 		if(brew.style !== undefined) {
@@ -193,18 +216,25 @@ const api = {
 				`\`\`\`\n\n` +
 				`${text}`;
 		}
-		const metadata = _.pick(brew, ['title', 'description', 'tags', 'systems', 'renderer', 'theme']);
+		const metadata = _.pick(brew, ['title', 'description', 'tags', 'renderer', 'theme']);
 		const snippetsArray = brewSnippetsToJSON('brew_snippets', brew.snippets, null, false).snippets;
 		metadata.snippets = snippetsArray.length > 0 ? snippetsArray : undefined;
+		metadata.bleedSize = { top: brew?.bleedSize?.top, bottom: brew?.bleedSize?.bottom, inner: brew?.bleedSize?.inner, outer: brew?.bleedSize?.outer };
+		metadata.safetySpace = { top: brew?.safetySpace?.top, bottom: brew?.safetySpace?.bottom, outer: brew?.safetySpace?.outer, inner: brew?.safetySpace?.inner };
+		metadata.trimSize  = { width: brew?.trimSize?.width, height: brew?.trimSize?.height };
+		metadata.columns = brew?.columns;
+		metadata.columnGutter = brew?.columnGutter;
+		metadata.license = brew?.license;
+		metadata.legalAuthors = brew?.legalAuthors;
+
 		text = `\`\`\`metadata\n` +
 			`${yaml.dump(metadata)}\n` +
 			`\`\`\`\n\n` +
 			`${text}`;
 		return text;
 	},
-
 	getGoodBrewTitle : (text)=>{
-		const tokens = Markdown.marked.lexer(text);
+		const tokens = hbfm.marked.lexer(text);
 		return (tokens.find((token)=>token.type === 'heading' || token.type === 'paragraph')?.text || 'No Title')
 			.slice(0, MAX_TITLE_LENGTH);
 	},
@@ -368,22 +398,29 @@ const api = {
 
 		if(brewFromServer?.hash !== brewFromClient?.hash) {
 			console.log(`Hash mismatch on brew ${brewFromClient.editId}`);
-			//debugTextMismatch(brewFromClient.text, brewFromServer.text, `edit/${brewFromClient.editId}`);
+			debugTextMismatch(brewFromClient.text, brewFromServer.text, `edit/${brewFromClient.editId}`);
 			res.setHeader('Content-Type', 'application/json');
 			return res.status(409).send(JSON.stringify({ message: `The server copy is out of sync with the saved brew. Please save your changes elsewhere, refresh, and try again.` }));
 		}
 
+		let result = [];
 		try {
 			const patches = parsePatch(brewFromClient.patches);
 			// Patch to a throwaway variable while parallelizing - we're more concerned with error/no error.
-			const patchedResult = decodeURI(applyPatches(patches, encodeURI(brewFromServer.text))[0]);
-			if(patchedResult != brewFromClient.text)
+			result = applyPatches(patches, encodeURI(brewFromServer.text));
+			const failedPatches = patches.map((patch, index)=>{if(!result[1][index]){ return patch; }});
+			if(failedPatches > 0){
+				throw (`Patch failure: ${failedPatches}/${result[1].length} did not apply`);
+			}
+			if(decodeURI(result[0]) != brewFromClient.text){
 				throw ('Patches did not apply cleanly, text mismatch detected');
+			}
 			// brew.text = applyPatches(patches, brewFromServer.text)[0];
 		} catch (err) {
-			//debugTextMismatch(brewFromClient.text, brewFromServer.text, `edit/${brewFromClient.editId}`);
+			debugTextMismatch(brewFromClient.text, brewFromServer.text, `edit/${brewFromClient.editId}`);
 			console.error('Failed to apply patches:', {
-				//patches : brewFromClient.patches,
+				// patches : brewFromClient.patches,
+				// result  : result,
 				brewId : brewFromClient.editId || 'unknown',
 				error  : err
 			});
@@ -392,6 +429,9 @@ const api = {
 		}
 
 		let brew         = _.assign(brewFromServer, brewFromClient);
+
+		migrateSystemsToTags(brew);
+
 		brew.title       = brew.title.trim();
 		brew.description = brew.description.trim() || '';
 		brew.text        = api.mergeBrewText(brew);
@@ -462,6 +502,8 @@ const api = {
 
 		saved.textBin = undefined; // Remove textBin from the saved object to save bandwidth
 
+		Stream.emit('sendUpdate', 'brewUpdated', { time: new Date, shareId: brew.shareId, version: brew.version });
+
 		res.status(200).send(saved);
 	},
 	deleteGoogleBrew : async (account, id, editId, res)=>{
@@ -481,7 +523,7 @@ const api = {
 				await HomebrewModel.deleteOne({ editId: id });
 				return next();
 			}
-			throw(err);
+			throw (err);
 		}
 
 		let brew = req.brew;
@@ -535,9 +577,9 @@ const api = {
 router.use(dbCheck);
 
 router.post('/api', checkClientVersion, asyncHandler(api.newBrew));
-router.put('/api/:id', checkClientVersion, asyncHandler(api.getBrew('edit', false)), asyncHandler(api.updateBrew));
+router.put('/api/:id', checkClientVersion, asyncHandler(api.getBrew('edit', false)), asyncHandler(api.updateBrew)); //alt endpoint, unused
 router.put('/api/update/:id', checkClientVersion, asyncHandler(api.getBrew('edit', false)), asyncHandler(api.updateBrew));
-router.delete('/api/:id', checkClientVersion, asyncHandler(api.deleteBrew));
+router.delete('/api/:id', checkClientVersion, asyncHandler(api.deleteBrew)); //alt endpoint, unused
 router.get('/api/remove/:id', checkClientVersion, asyncHandler(api.deleteBrew));
 router.get('/api/theme/:renderer/:id', asyncHandler(api.getThemeBundle));
 

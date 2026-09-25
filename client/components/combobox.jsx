@@ -7,20 +7,22 @@ const Combobox = createReactClass({
 	displayName     : 'Combobox',
 	getDefaultProps : function() {
 		return {
+			id			: '',
 			className   : '',
 			trigger     : 'hover',
 			default     : '',
 			placeholder : '',
-			tooltip: '',
+			tooltip     : '',
 			autoSuggest : {
 				clearAutoSuggestOnClick : true,
 				suggestMethod           : 'includes',
 				filterOn                : []  // should allow as array to filter on multiple attributes, or even custom filter
 			},
-			valuePatterns: /.+/
+			valuePatterns : /.+/
 		};
 	},
 	getInitialState : function() {
+		this.dropdownRef = React.createRef();
 		return {
 			showDropdown : false,
 			value        : '',
@@ -41,7 +43,7 @@ const Combobox = createReactClass({
 	},
 	handleClickOutside : function(e){
 		// Close dropdown when clicked outside
-		if(this.refs.dropdown && !this.refs.dropdown.contains(e.target)) {
+		if(this.dropdownRef.current && !this.dropdownRef.current.contains(e.target)) {
 			this.handleDropdown(false);
 		}
 	},
@@ -74,6 +76,7 @@ const Combobox = createReactClass({
 				onClick=     {this.props.trigger == 'click' ? ()=>{this.handleDropdown(true);} : undefined}
 				{...(this.props.tooltip ? { 'data-tooltip-right': this.props.tooltip } : {})}>
 				<input
+					id={this.props.id}
 					type='text'
 					onChange={(e)=>this.handleInput(e)}
 					value={this.state.value || ''}
@@ -88,7 +91,7 @@ const Combobox = createReactClass({
 						}
 					}}
 					onKeyDown={(e)=>{
-						if (e.key === "Enter") {
+						if(e.key === 'Enter') {
 							e.preventDefault();
 							this.props.onEntry(e);
 						}
@@ -128,7 +131,7 @@ const Combobox = createReactClass({
 		});
 		return (
 			<div className={`dropdown-container ${this.props.className}`}
-				ref='dropdown'
+				ref={this.dropdownRef}
 				onMouseLeave={this.props.trigger == 'hover' ? ()=>{this.handleDropdown(false);} : undefined}>
 				{this.renderTextInput()}
 				{this.renderDropdown(dropdownChildren)}
