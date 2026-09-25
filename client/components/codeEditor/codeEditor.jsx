@@ -42,10 +42,11 @@ import cm5Themes from 'codemirror-5-themes';
 const themes = { default: defaultCM5Theme, ...cm5Themes, darkbrewery };
 const themeCompartment = new Compartment();
 const highlightCompartment = new Compartment();
+const settingsCompartment = new Compartment();
 
-import { generalKeymap, markdownKeymap } from './extensions/customKeyMaps.js';
+import { generalKeymap, markdownKeymap, cssKeymap, formatCSS } from './extensions/customKeyMaps.js';
 import foldOnPages from './extensions/customFolding.js';
-import { customHighlightPlugin, customHighlightStyle } from './extensions/customHighlight.js';
+import { customHighlightStyle , customHighlightPlugin } from './extensions/customHighlight.js';
 import { legacyCustomHighlightStyle } from './extensions/legacyCustomHighlight.js';
 import { spellChecker } from 'codemirror-v6-spell-checker';
 
@@ -79,6 +80,20 @@ const programmaticCursorLineField = StateField.define({
 	provide : (decorationSet)=>EditorView.decorations.from(decorationSet)
 });
 
+const createSettingsExtensions = (settings)=>[
+	...(settings.autoCloseBrackets ? [autoCloseBrackets] : []),
+	...(settings.lineNumbers ? [lineNumbers()] : []),
+	...(settings.activeLineShading ? [highlightActiveLine(),
+		highlightActiveLineGutter()] : []),
+	...(settings.fontSize
+		? [EditorView.theme({
+			'&, .cm-content' : {
+				fontSize : `${settings.fontSize || 1}em`,
+			},
+		})]
+		: []),
+];
+
 const CodeEditor = forwardRef(
 	(
 		{
@@ -89,9 +104,11 @@ const CodeEditor = forwardRef(
 			onChange = ()=>{},
 			onCursorChange = ()=>{},
 			onViewChange = ()=>{},
+			onThemeChange = ()=>{},
 			editorTheme = 'default',
 			style,
 			renderer,
+			settings = {},
 			...props
 		},
 		ref,
@@ -164,8 +181,7 @@ const CodeEditor = forwardRef(
 				EditorView.lineWrapping,
 				setEventListeners,
 				languageExtension,
-				autoCloseBrackets,
-				lineNumbers(),
+				settingsCompartment.of(createSettingsExtensions(settings)),
 				scrollPastEnd(),
 				search(),
 				history(), //allows for undo and redo
@@ -179,15 +195,13 @@ const CodeEditor = forwardRef(
 				}),
 
 				//highlights
-				highlightCompartment.of([customHighlightPlugin(renderer, tab), highlightExtension]),
+				highlightCompartment.of([customHighlightPlugin(renderer, tab, settings), highlightExtension]),
 				themeCompartment.of(themeExtension),
-				highlightActiveLine(),
-				highlightActiveLineGutter(),
 
 				//keyboard shortcut
 				keymap.of([...defaultKeymap, foldKeymap, ...searchKeymap]),
 				generalKeymap,
-				...(tab !== 'brewStyles' ? [markdownKeymap] : []),
+				...(tab === 'brewStyles' ? [cssKeymap] : [markdownKeymap]),
 
 				//multiple cursors and selections
 				drawSelection(),
@@ -280,6 +294,12 @@ const CodeEditor = forwardRef(
 				}
 
 				view.setState(nextState);
+				view.dispatch({
+					effects : settingsCompartment.reconfigure(
+						createSettingsExtensions(settings)
+					),
+				});
+
 				restoreFolds(view, foldsRef.current[tab]);
 
 				const savedScroll = scrollRef.current[tab];
@@ -317,7 +337,10 @@ const CodeEditor = forwardRef(
 			view.dispatch({
 				effects : themeCompartment.reconfigure(themeExtension),
 			});
-		}, [editorTheme]);
+
+			const isDark = view.state.facet(EditorView.darkTheme);
+			onThemeChange(isDark);
+		}, [editorTheme, tab]);
 
 		useEffect(()=>{
 			//rebuild syntax highlight when changing tab or renderer
@@ -329,9 +352,20 @@ const CodeEditor = forwardRef(
     		: syntaxHighlighting(legacyCustomHighlightStyle);
 
 			view.dispatch({
-				effects : highlightCompartment.reconfigure([customHighlightPlugin(renderer, tab), highlightExtension]),
+				effects : highlightCompartment.reconfigure([customHighlightPlugin(renderer, tab, settings), highlightExtension])
 			});
 		}, [renderer, tab]);
+
+		useEffect(()=>{
+    		const view = viewRef.current;
+    		if(!view) return;
+
+    		view.dispatch({
+        		effects : settingsCompartment.reconfigure(
+           		createSettingsExtensions(settings)
+        		),
+    		});
+		}, [settings]);
 
 		useImperativeHandle(ref, ()=>({
 
@@ -364,6 +398,8 @@ const CodeEditor = forwardRef(
 					});
 				}, 400);
 			},
+
+			formatCode : ()=>formatCSS(viewRef.current),
 
 			undo : ()=>undo(viewRef.current),
 			redo : ()=>redo(viewRef.current),

@@ -251,13 +251,13 @@ function tokenizeCustomMarkdown(text) {
 			);
 			if(match) endCh = match.index + match[0].length;
 			const closingMatch = lineText.match(/ *(}})/d);
-			
+
 			if(closingMatch) {
 				tokens.push({ line: lineNumber, from: closingMatch.indices[1][0], to: closingMatch.indices[1][1], type: customTags.block });
 			} else {
 				tokens.push({ line: lineNumber, type: customTags.block });
 			}
-			
+
 		}
 	});
 
@@ -350,10 +350,9 @@ class ImageWidget extends WidgetType {
 
 	toDOM() {
 		const img = document.createElement('img');
-		img.loading = "lazy";
+		img.loading = 'lazy';
 		img.className = 'cm-preview';
 		img.src = this.url;
-		
 
 		img.onerror = ()=>{
 			img.src  = 'client/icons/broken-image.jpg';
@@ -367,7 +366,7 @@ class ImageWidget extends WidgetType {
 	}
 }
 
-export function customHighlightPlugin(renderer, tab) {
+export function customHighlightPlugin(renderer, tab, settings) {
 	//this function takes the custom tokens created in the tokenize function in customhighlight files
 	//takes the tokens defined by that function and assigns classes to them
 	//it also creates page number and snippet number widgets
@@ -399,12 +398,12 @@ export function customHighlightPlugin(renderer, tab) {
 				const tree = ensureSyntaxTree(view.state, view.state.doc.length, 50) || syntaxTree(view.state);
 				tree.iterate({
 					enter : (node)=>{
-						if(node.name === 'Image') {
+						if(node.name === 'Image' && settings.showImagePreviews) {
 							const url = getUrl(node, view.state.doc);
 
 							const widgetPosition = node.node.lastChild.from;
-							//this is not exactly standard, but should hold, 
-							//and is the shortest way i could find of positioning 
+							//this is not exactly standard, but should hold,
+							//and is the shortest way i could find of positioning
 							//the image inside the cm-image node
 
 							if(!url) return;
@@ -432,7 +431,7 @@ export function customHighlightPlugin(renderer, tab) {
 						const to = line.from + token.to;
 
 						const attrs = {};
-						if(token.type === 'Image' && token.url) {
+						if(token.type === 'Image' && token.url && settings.showImagePreviews) {
 
 							attrs['data-url'] = token.url;
 						}

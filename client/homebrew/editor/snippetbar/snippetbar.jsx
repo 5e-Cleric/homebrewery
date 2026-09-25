@@ -2,6 +2,7 @@
 import './snippetbar.less';
 import React from 'react';
 import createReactClass from 'create-react-class';
+import { Dropdown } from '@components/dropdown/dropdown.jsx';
 
 import _ from 'lodash';
 import cx from 'classnames';
@@ -9,6 +10,7 @@ import cx from 'classnames';
 import { loadHistory } from '../../utils/versionHistory.js';
 import { brewSnippetsToJSON } from '@shared/helpers.js';
 
+/*eslint-disable camelcase*/
 import Legacy5ePHB from '@themes/Legacy/5ePHB/snippets.js';
 import V3_5ePHB   from '@themes/V3/5ePHB/snippets.js';
 import V3_5eDMG   from '@themes/V3/5eDMG/snippets.js';
@@ -22,26 +24,7 @@ const ThemeSnippets = {
 	V3_Journal   : V3_Journal,
 	V3_Blank     : V3_Blank,
 };
-
-import defaultCM5Theme from '@themes/codeMirror/default.js';
-import darkbrewery from '@themes/codeMirror/darkbrewery.js';
-import cm5Themes from 'codemirror-5-themes';
-
-const themes = { default: defaultCM5Theme, ...cm5Themes, darkbrewery };
-
-const themeNames = Object.entries(themes)
-  .filter(([name, value])=>Array.isArray(value) &&
-    !name.endsWith('Init') &&
-    !name.endsWith('Style')
-  )
-  .map(([name])=>name);
-
-const EditorThemes = [
-	'default',
-	...themeNames
-    .filter((name)=>name !== 'default')
-    .sort((a, b)=>a.localeCompare(b))
-];
+/*eslint-enable camelcase */
 
 const execute = function(val, props){
 	if(_.isFunction(val)) return val(props);
@@ -52,29 +35,28 @@ const Snippetbar = createReactClass({
 	displayName     : 'SnippetBar',
 	getDefaultProps : function() {
 		return {
-			brew              : {},
-			view              : 'text',
-			onViewChange      : ()=>{},
-			onInject          : ()=>{},
-			onToggle          : ()=>{},
-			showEditButtons   : true,
-			renderer          : 'legacy',
-			undo              : ()=>{},
-			redo              : ()=>{},
-			historySize       : ()=>{},
-			foldCode          : ()=>{},
-			unfoldCode        : ()=>{},
-			updateEditorTheme : ()=>{},
-			cursorPos         : {},
-			themeBundle       : [],
-			updateBrew        : ()=>{}
+			brew            : {},
+			view            : 'text',
+			onViewChange    : ()=>{},
+			onInject        : ()=>{},
+			onToggle        : ()=>{},
+			showEditButtons : true,
+			renderer        : 'legacy',
+			undo            : ()=>{},
+			redo            : ()=>{},
+			historySize     : ()=>{},
+			foldCode        : ()=>{},
+			unfoldCode      : ()=>{},
+			formatCode      : ()=>{},
+			cursorPos       : {},
+			themeBundle     : [],
+			updateBrew      : ()=>{}
 		};
 	},
 
 	getInitialState : function() {
 		return {
 			renderer      : this.props.renderer,
-			themeSelector : false,
 			snippets      : [],
 			showHistory   : false,
 			historyExists : false,
@@ -91,7 +73,6 @@ const Snippetbar = createReactClass({
 
 	componentDidUpdate : async function(prevProps, prevState) {
 		if(prevProps.renderer != this.props.renderer ||
-			prevProps.theme != this.props.theme ||
 			prevProps.themeBundle != this.props.themeBundle ||
 			prevProps.brew.snippets != this.props.brew.snippets) {
 			this.setState({
@@ -156,38 +137,11 @@ const Snippetbar = createReactClass({
 		this.props.onInject(injectedText);
 	},
 
-	toggleThemeSelector : function(e){
-		if(e.target.tagName != 'SELECT'){
-			this.setState({
-				themeSelector : !this.state.themeSelector
-			});
-		}
-	},
-
-	changeTheme : function(e){
-		if(e.target.value == this.props.currentEditorTheme) return;
-		this.props.updateEditorTheme(e.target.value);
-
-		this.setState({
-			themeSelector : false,
-		});
-	},
-
-	renderThemeSelector : function(){
-		return <div className='themeSelector'>
-			<select value={this.props.currentEditorTheme} onChange={this.changeTheme} >
-				{EditorThemes.map((theme, key)=>{
-					return <option key={key} value={theme}>{theme}</option>;
-				})}
-			</select>
-		</div>;
-	},
-
 	renderSnippetGroups : function(){
 		const snippets = this.state.snippets.filter((snippetGroup)=>snippetGroup.view === this.props.view);
 		if(snippets.length === 0) return null;
 
-		return <div className='snippets'>
+		return <ul className='snippets' role='menubar' aria-label='Snippets Menubar'>
 			{_.map(snippets, (snippetGroup)=>{
 				return <SnippetGroup
 					brew={this.props.brew}
@@ -200,7 +154,7 @@ const Snippetbar = createReactClass({
 				/>;
 			})
 			}
-		</div>;
+		</ul>;
 	},
 
 	replaceContent : function(item){
@@ -244,54 +198,57 @@ const Snippetbar = createReactClass({
 
 		return (
 			<div className='editors'>
-				{this.props.view !== 'meta' && <><div className='historyTools'>
-					<div className={`editorTool snippetGroup history ${this.state.historyExists ? 'active' : ''}`}
+				{this.props.view !== 'meta' && this.props.view !== 'settings' && <><div className='historyTools'>
+					<button className={`editorTool snippetGroup history ${this.state.historyExists ? 'active' : ''}`}
 						onClick={this.toggleHistoryMenu} >
 						<i className='fas fa-clock-rotate-left' />
 						{ this.state.showHistory && this.renderHistoryItems() }
-					</div>
-					<div className={`editorTool undo ${this.props.historySize.done ? 'active' : ''}`}
+					</button>
+					<button className={`editorTool undo ${this.props.historySize.done ? 'active' : ''}`}
 						onClick={this.props.undo} >
 						<i className='fas fa-undo' />
-					</div>
-					<div className={`editorTool redo ${this.props.historySize.undone ? 'active' : ''}`}
+					</button>
+					<button className={`editorTool redo ${this.props.historySize.undone ? 'active' : ''}`}
 						onClick={this.props.redo} >
 						<i className='fas fa-redo' />
-					</div>
+					</button>
 				</div>
 				<div className='codeTools'>
-					<div className={`editorTool foldAll ${this.props.foldCode ? 'active' : ''}`}
+					<button className={`editorTool foldAll ${this.props.foldCode ? 'active' : ''}`}
 						onClick={this.props.foldCode} >
 						<i className='fas fa-compress-alt' />
-					</div>
-					<div className={`editorTool unfoldAll ${this.props.unfoldCode ? 'active' : ''}`}
+					</button>
+					<button className={`editorTool unfoldAll ${this.props.unfoldCode ? 'active' : ''}`}
 						onClick={this.props.unfoldCode} >
 						<i className='fas fa-expand-alt' />
-					</div>
-					<div className={`editorTheme ${this.state.themeSelector ? 'active' : ''}`}
-						onClick={this.toggleThemeSelector} >
-						<i className='fas fa-palette' />
-						{this.state.themeSelector && this.renderThemeSelector()}
-					</div>
+					</button>
+					<button className={`editorTool formatCode ${this.props.formatCode ? 'active' : ''}`}
+						onClick={this.props.formatCode} >
+						<i className='fas fa-wand-magic-sparkles' />
+					</button>
 				</div></>}
 
 				<div className='tabs'>
-					<div className={cx('text', { selected: this.props.view === 'text' })}
+					<button className={cx('text', { selected: this.props.view === 'text' })}
 						onClick={()=>this.props.onViewChange('text')}>
 						<i className='fa fa-beer' />
-					</div>
-					<div className={cx('style', { selected: this.props.view === 'style' })}
+					</button>
+					<button className={cx('style', { selected: this.props.view === 'style' })}
 						onClick={()=>this.props.onViewChange('style')}>
 						<i className='fa fa-paint-brush' />
-					</div>
-					<div className={cx('snippet', { selected: this.props.view === 'snippet' })}
+					</button>
+					<button className={cx('snippet', { selected: this.props.view === 'snippet' })}
 						onClick={()=>this.props.onViewChange('snippet')}>
 						<i className='fas fa-th-list' />
-					</div>
-					<div className={cx('meta', { selected: this.props.view === 'meta' })}
+					</button>
+					<button className={cx('meta', { selected: this.props.view === 'meta' })}
 						onClick={()=>this.props.onViewChange('meta')}>
 						<i className='fas fa-info-circle' />
-					</div>
+					</button>
+					<button className={cx('settings', { selected: this.props.view === 'settings' })}
+						onClick={()=>this.props.onViewChange('settings')}>
+						<i className='fas fa-gear' />
+					</button>
 				</div>
 
 			</div>
@@ -320,36 +277,35 @@ const SnippetGroup = createReactClass({
 		};
 	},
 	handleSnippetClick : function(e, snippet){
-		e.stopPropagation();
 		this.props.onSnippetClick(execute(snippet.gen, this.props));
 	},
 	renderSnippets : function(snippets){
 		return _.map(snippets, (snippet)=>{
-			return <div className='snippet' key={snippet.name} onClick={(e)=>this.handleSnippetClick(e, snippet)}>
-				<i className={snippet.icon} />
-				<span className={`name${snippet.disabled ? ' disabled' : ''}`} title={snippet.name}>{snippet.name}</span>
-				{snippet.experimental && <span className='beta'>beta</span>}
-				{snippet.disabled     && <span className='beta' title='temporarily disabled due to large slowdown; under re-design'>disabled</span>}
-				{snippet.subsnippets && <>
-					<i className='fas fa-caret-right'></i>
-					<div className='dropdown side'>
+			if(!snippet.subsnippets){
+				return (
+					<li key={snippet.name} role='none'>
+						<button className='menu-item'  onClick={(e)=>this.handleSnippetClick(e, snippet)} role='menuitem' aria-label={snippet.name} disabled={snippet.disabled}>
+							<i className={snippet.icon} />
+							<span className={`name${snippet.disabled ? ' disabled' : ''}`} title={snippet.name}>{snippet.name}</span>
+							{snippet.experimental && <span className='status'>beta</span>}
+							{snippet.disabled     && <span className='status' title='temporarily disabled due to large slowdown; under re-design'>disabled</span>}
+						</button>
+					</li>
+				);
+			} else if(snippet.subsnippets){
+				return (
+					<Dropdown groupName={snippet.name} icon={snippet.icon} key={snippet.name}>
 						{this.renderSnippets(snippet.subsnippets)}
-					</div></>}
-			</div>;
+					</Dropdown>
+				);
+			}
 
 		});
 	},
 
 	render : function(){
-		const snippetGroup = `snippetGroup snippetBarButton ${this.props.snippets.length === 0 ? 'disabledSnippets' : ''}`;
-		return <div className={snippetGroup}>
-			<div className='text'>
-				<i className={this.props.icon} />
-				<span className='groupName'>{this.props.groupName}</span>
-			</div>
-			<div className='dropdown'>
-				{this.renderSnippets(this.props.snippets)}
-			</div>
-		</div>;
+		return <Dropdown groupName={this.props.groupName} id={this.props.groupName} icon={this.props.icon}>
+			{this.renderSnippets(this.props.snippets)}
+		</Dropdown>;
 	},
 });

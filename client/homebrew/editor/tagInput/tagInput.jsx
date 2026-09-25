@@ -1,10 +1,10 @@
 import './tagInput.less';
 import React, { useState, useEffect } from 'react';
-import Combobox from '../../../components/combobox.jsx';
+import Combobox from '@components/combobox.jsx';
 
 import { tagSuggestionList, canonizationList } from './curatedTagSuggestionList.js';
 
-const TagInput = ({ tooltip, label, valuePatterns, values = [], unique = true, placeholder = '', smallText = '', onChange })=>{
+const TagInput = ({ id, tooltip, label, valuePatterns, values = [], unique = true, placeholder = '', smallText = '', onChange })=>{
 	const [tagList, setTagList] = useState(
 		values.map((value)=>({
 			value,
@@ -128,6 +128,7 @@ const TagInput = ({ tooltip, label, valuePatterns, values = [], unique = true, p
 	return (
 		<div className='tagInputWrap'>
 			<Combobox
+				id={id}
 				trigger='click'
 				className='tagInput-dropdown'
 				default=''
@@ -155,6 +156,7 @@ const TagInput = ({ tooltip, label, valuePatterns, values = [], unique = true, p
 			<ul className='list'>
 				{tagList.map((t, i)=>t.editing ? (
 					<input
+						id={`${id}-${i}`}
 						key={i}
 						type='text'
 						value={t.draft} // always use draft
@@ -181,6 +183,7 @@ const TagInput = ({ tooltip, label, valuePatterns, values = [], unique = true, p
 						{t.value}
 						<button
 							type='button'
+							aria-label={`remove ${t.value} tag`}
 							onClick={(e)=>{
 								e.stopPropagation();
 								removeTag(i);
