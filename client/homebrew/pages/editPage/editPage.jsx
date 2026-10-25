@@ -1,50 +1,14 @@
-/* eslint-disable max-lines */
 import './editPage.less';
 
-// Common imports
-import React, { useState, useEffect, useRef, useEffectEvent } from 'react';
-import request                                from '../../utils/request-middleware.js';
-import { hbfm } from 'marked-hbfm';
-import _                                      from 'lodash';
-
-import { DEFAULT_BREW_LOAD }                  from '../../../../server/brewDefaults.js';
-
-import useCommonEditPageFunctions from '../../utils/commonEditPageFunctions.jsx'
-
-import SplitPane    from '@components/splitPane/splitPane.jsx';
-import Editor       from '../../editor/editor.jsx';
-import BrewRenderer from '../../brewRenderer/brewRenderer.jsx';
-
-import Nav            from '@navbar/nav.jsx';
-import Navbar         from '@navbar/navbar.jsx';
-import NewBrewItem    from '@navbar/newbrew.navitem.jsx';
-import AccountNavItem from '@navbar/account.navitem.jsx';
-import ErrorNavItem   from '@navbar/error-navitem.jsx';
-import HelpNavItem    from '@navbar/help.navitem.jsx';
-import VaultNavItem   from '@navbar/vault.navitem.jsx';
-import PrintNavItem   from '@navbar/print.navitem.jsx';
-import RecentNavItems from '@navbar/recent.navitem.jsx';
-const { both: RecentNavItem } = RecentNavItems;
+import React                 from 'react';
+import request               from '../../utils/request-middleware.js';
+import _                     from 'lodash';
+import EditorPage            from '../basePages/editPage/editorPage.jsx';
+import { DEFAULT_BREW_LOAD } from '../../../../server/brewDefaults.js';
 
 // Page specific imports
-import Headtags from '../../../../vitreum/headtags.js';
-const Meta = Headtags.Meta;
-import { md5 }                           from 'hash-wasm';
 import { gzipSync, strToU8 }             from 'fflate';
-import { makePatches, stringifyPatches } from '@sanity/diff-match-patch';
-
-import ShareNavItem              from '@navbar/share.navitem.jsx';
-import LockNotification from './lockNotification/lockNotification.jsx';
 import { updateHistory, versionHistoryGarbageCollection } from '../../utils/versionHistory.js';
-import googleDriveIcon from '../../googleDrive.svg';
-
-const BREWKEY  = 'HB_newPage_content';
-const STYLEKEY = 'HB_newPage_style';
-const SNIPKEY  = 'HB_newPage_snippets';
-const METAKEY  = 'HB_newPage_meta';
-
-const useLocalStorage = false;
-const sandbox	        = false;
 
 const EditPage = (props)=>{
 	props = {
@@ -52,254 +16,46 @@ const EditPage = (props)=>{
 		...props
 	};
 
-	const [currentBrew, setCurrentBrew] = useState(props.brew);
-	const [saveGoogle, setSaveGoogle] = useState(!!props.brew.googleId);
-	const [error, setError] = useState(null);
-	const [HTMLErrors, setHTMLErrors] = useState(hbfm.validate(props.brew.text));
-	const [currentEditorViewPageNum, setCurrentEditorViewPageNum] = useState(1);
-	const [currentEditorCursorPageNum, setCurrentEditorCursorPageNum] = useState(1);
-	const [currentBrewRendererPageNum, setCurrentBrewRendererPageNum] = useState(1);
-	const [themeBundle, setThemeBundle] = useState({});
-	const [alertTrashedGoogleBrew, setAlertTrashedGoogleBrew] = useState(props.brew.trashed);
-	const [alertNoGoogleToTransfer, setAlertNoGoogleToTransfer] = useState(false);
-	const [alertOwnershipToTransfer, setAlertOwnershipToTransfer] = useState(false);
-	const [confirmGoogleTransfer, setConfirmGoogleTransfer] = useState(false);
-
-	const editorRef     = useRef(null);
-	const lastSavedBrew = useRef(_.cloneDeep(props.brew));
-
-	const updateBrew = (newData)=>setCurrentBrew((prevBrew)=>({
-		...prevBrew,
-		style    : newData.style,
-		text     : newData.text,
-		snippets : newData.snippets
-	}));
-
-	const handleGoogleClick = ()=>{
-		if(currentBrew.authors.length > 0 && global.account?.username !== currentBrew.authors[0]) {
-			setAlertOwnershipToTransfer(true);
-			return;
-		}
-		if(!global.account?.googleId) {
-			setAlertNoGoogleToTransfer(true);
-			return;
-		}
-
-		setConfirmGoogleTransfer((prev)=>!prev);
-		setError(null);
-	};
-
-	const closeAlerts = (e)=>{
-		e.stopPropagation(); //Only handle click once so alert doesn't reopen
-		setAlertTrashedGoogleBrew(false);
-		setAlertNoGoogleToTransfer(false);
-		setConfirmGoogleTransfer(false);
-		setAlertOwnershipToTransfer(false);
-	};
-
-	const toggleGoogleStorage = (e)=>{
-		closeAlerts(e);
-		const newSaveGoogle = !saveGoogle;
-		setSaveGoogle((prev)=>!prev);
-		setError(null);
-		trySave(true, true, newSaveGoogle);
-	};
-
 	const save = async (brew, saveToGoogle)=>{
-		setHTMLErrors(hbfm.validate(brew.text));
-
 		await updateHistory(brew).catch(console.error);
 		await versionHistoryGarbageCollection().catch(console.error);
 
-		//Prepare content to send to server
-		const brewToSave = {
-			...brew,
-			text      : brew.text.normalize('NFC'),
-			pageCount : ((brew.renderer === 'legacy' ? brew.text.match(/\\page/g) : brew.text.match(/^(?=\\page(?:break)?(?: *{[^\n{}]*})?$)/gm)) || []).length + 1,
-			patches   : stringifyPatches(makePatches(encodeURI(lastSavedBrew.current.text.normalize('NFC')), encodeURI(brew.text.normalize('NFC')))),
-			hash      : await md5(lastSavedBrew.current.text.normalize('NFC')),
-			textBin   : undefined,
-			version   : lastSavedBrew.current.version
-		};
-
-		const compressedBrew = gzipSync(strToU8(JSON.stringify(brewToSave)));
+		const compressedBrew = gzipSync(strToU8(JSON.stringify(brew)));
 		const transfer = saveToGoogle === _.isNil(brew.googleId);
 		const params = transfer ? `?${saveToGoogle ? 'saveToGoogle' : 'removeFromGoogle'}=true` : '';
 
 		const res = await request
-			.put(`/api/update/${brewToSave.editId}${params}`)
+			.put(`/api/update/${brew.editId}${params}`)
 			.set('Content-Encoding', 'gzip')
 			.set('Content-Type', 'application/json')
-			.send(compressedBrew)
-			.catch((err)=>{
-				console.error('Error Updating Local Brew');
-				setError(err);
-			});
-		if(!res) return;
+			.send(compressedBrew);
 
 		const updatedFields = {
-			googleId : res.body.googleId ?? null,
-			editId   : res.body.editId,
+			googleId : res.body.googleId ?? null, //TODO: investigate if we can set googleId:null in server/update instead of undefined
+			editId   : res.body.editId,           //then, editPage can just apply res.body instead of breaking out these fields.
 			shareId  : res.body.shareId,
 			version  : res.body.version
 		};
 
-		lastSavedBrew.current = {
-			...brew,
-			...updatedFields
-		};
-
-		setCurrentBrew((prevBrew)=>({
-			...prevBrew,
-			...updatedFields
-		}));
-
-		history.replaceState(null, null, `/edit/${res.body.editId}`);
+		return updatedFields;
 	};
 
-	const renderGoogleDriveIcon = ()=>(
-		<Nav.item className='googleDriveStorage' onClick={handleGoogleClick}>
-			<img src={googleDriveIcon} className={saveGoogle ? '' : 'inactive'} alt='Google Drive icon' />
-
-			{alertOwnershipToTransfer && (
-				<div className='errorContainer'>
-					You must be the Owner to transfer between the Homebrewery and Google Drive! 
-					The owner of this file is {currentBrew.authors[0]}.
-					<br></br>
-					<div className='confirm' onClick={closeAlerts}> Okay </div>
-				</div>
-			)}
-
-			{alertNoGoogleToTransfer && (
-				<div className='errorContainer'>
-					You must be signed in to a Google account to transfer between the Homebrewery and Google Drive!
-					<a target='_blank' rel='noopener noreferrer' href={`https://www.naturalcrit.com/login?redirect=${window.location.href}`}>
-						<div className='confirm' onClick={closeAlerts}> Sign In </div>
-					</a>
-					<div className='deny'  onClick={closeAlerts}>      Not Now </div>
-				</div>
-			)}
-
-			{alertTrashedGoogleBrew && (
-				<div className='errorContainer'>
-					This brew is currently in your Trash folder on Google Drive!<br />
-					If you want to keep it, make sure to move it before it is deleted permanently!<br />
-					<div className='confirm' onClick={toggleGoogleStorage}> Save my brew </div>
-				</div>
-			)}
-
-			{confirmGoogleTransfer && (
-				<div className='errorContainer'>
-					{saveGoogle
-						? 'Would you like to transfer this brew from your Google Drive storage back to the Homebrewery?'
-						: 'Would you like to transfer this brew from the Homebrewery to your personal Google Drive storage?'}
-					<br />
-					<div className='confirm' onClick={toggleGoogleStorage}> Yes </div>
-					<div className='deny' onClick={closeAlerts}>                                  No  </div>
-				</div>
-			)}
-		</Nav.item>
-	);
-
-	const renderAutoSaveButton = ()=>(
-		<Nav.item onClick={toggleAutoSave}>
-			Autosave <i className={autoSaveEnabled ? 'fas fa-power-off active' : 'fas fa-power-off'}></i>
-		</Nav.item>
-	);
-
-	const renderNavbar = ()=>{
-		return <Navbar>
-			<Nav.section>
-				<Nav.item className='brewTitle'>{currentBrew.title}</Nav.item>
-			</Nav.section>
-
-			<Nav.section>
-				{renderGoogleDriveIcon()}
-				{error
-					? <ErrorNavItem error={error} clearError={clearError} />
-					: <Nav.dropdown className='save-menu'>
-						{renderSaveButton()}
-						{renderAutoSaveButton()}
-					</Nav.dropdown>}
-				<NewBrewItem />
-				<PrintNavItem />
-				<HelpNavItem />
-				<VaultNavItem />
-				<ShareNavItem brew={currentBrew} currentPage={currentBrewRendererPageNum} />
-				<RecentNavItem brew={currentBrew} storageKey='edit' />
-				<AccountNavItem/>
-			</Nav.section>
-		</Navbar>;
+	const onSaveSuccess = (savedBrew)=>{
+		history.replaceState(null, null, `/edit/${savedBrew.editId}`);;
 	};
-
-	const {
-		handleSplitMove,
-		handleBrewChange,
-		toggleAutoSave,
-		clearError,
-		renderSaveButton,
-		autoSaveEnabled,
-		trySave
-	} = useCommonEditPageFunctions({
-		saveGoogle,
-		setError,
-		setThemeBundle,
-		HTMLErrors,
-		setHTMLErrors,
-		currentBrew,
-		setCurrentBrew,
-		useLocalStorage,
-		BREWKEY,
-		STYLEKEY,
-		SNIPKEY,
-		METAKEY,
-		hbfm,
-		sandbox,
-		lastSavedBrew,
-		editorRef,
-		save,
-	});
 
 	return (
-		<div className='editPage sitePage'>
-			<Meta name='robots' content='noindex, nofollow' />
-
-			{renderNavbar()}
-
-			{currentBrew.lock && <LockNotification shareId={currentBrew.shareId} message={currentBrew.lock.editMessage} reviewRequested={currentBrew.lock.reviewRequested}/>}
-
-			<div className='content'>
-				<SplitPane onDragFinish={handleSplitMove}>
-					<Editor
-						ref={editorRef}
-						brew={currentBrew}
-						onBrewChange={handleBrewChange}
-						reportError={setError}
-						renderer={currentBrew.renderer}
-						userThemes={props.userThemes}
-						themeBundle={themeBundle}
-						updateBrew={updateBrew}
-						onCursorPageChange={setCurrentEditorCursorPageNum}
-						onViewPageChange={setCurrentEditorViewPageNum}
-						currentEditorViewPageNum={currentEditorViewPageNum}
-						currentEditorCursorPageNum={currentEditorCursorPageNum}
-						currentBrewRendererPageNum={currentBrewRendererPageNum}
-					/>
-					<BrewRenderer
-						text={currentBrew.text}
-						style={currentBrew.style}
-						renderer={currentBrew.renderer}
-						themeBundle={themeBundle}
-						errors={HTMLErrors}
-						lang={currentBrew.lang}
-						onPageChange={setCurrentBrewRendererPageNum}
-						currentEditorCursorPageNum={currentEditorCursorPageNum}
-						allowPrint={true}
-					/>
-				</SplitPane>
-			</div>
-		</div>
-	);
+		<EditorPage
+			useLocalStorage     = {false}
+			sandbox             = {false}
+			showFloatingButtons = {false}
+			showEditorButtons   = {true}
+			pageName            = {'editPage'}
+			brew                = {props.brew}
+			userThemes          = {props.userThemes}
+			save                = {save}
+			onSaveSuccess       = {onSaveSuccess}
+		></EditorPage>);
 };
 
 export default EditPage;
